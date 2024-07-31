@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -22,25 +21,37 @@ class WeatherService {
       throw Exception('Failed to load weather data');
     }
   }
-
   Future<String> getCurrentCity() async {
-    // get permission
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+    try {
+      // Verifica a permissão de localização
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return "Permissão negada";
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        // Permissão permanentemente negada
+        return "Permissão negada permanentemente";
+      }
+
+      // Obtenha a localização atual
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
+      // Converte as coordenadas em uma lista de objetos Placemark
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude, position.longitude);
+
+      // Extrai o nome da cidade do primeiro Placemark
+      String? city = placemarks[0].locality;
+
+      return city ?? "Cidade não encontrada";
+    } catch (e) {
+      // Captura qualquer erro e retorna uma mensagem de erro
+      return "Erro ao obter a localização: $e";
     }
-
-    // fetch the current location
-    Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
-
-    //  convert the location int a list of placemark objects
-    List<Placemark> placemarks =
-        await placemarkFromCoordinates(position.latitude, position.longitude);
-
-    // extract the city name from the first placemark
-    String? city = placemarks[0].locality;
-
-    return city ?? "";
   }
 }
